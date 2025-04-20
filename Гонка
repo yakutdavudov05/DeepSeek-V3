@@ -1,0 +1,163 @@
+import pygame
+import random
+import sys
+
+# Инициализация Pygame
+pygame.init()
+
+# Настройки экрана
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("🚗 Гонки 🚗")
+
+# Цвета
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+GRAY = (100, 100, 100)
+
+# Настройки игры
+FPS = 60
+clock = pygame.time.Clock()
+
+class Car:
+    def __init__(self, x, y, color, speed=5):
+        self.x = x
+        self.y = y
+        self.color = color
+        self.speed = speed
+        self.width = 50
+        self.height = 30
+        self.score = 0
+    
+    def draw(self):
+        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
+        # Колёса
+        pygame.draw.circle(screen, BLACK, (self.x + 10, self.y + self.height), 8)
+        pygame.draw.circle(screen, BLACK, (self.x + self.width - 10, self.y + self.height), 8)
+    
+    def move(self, direction):
+        if direction == "left" and self.x > 0:
+            self.x -= self.speed
+        elif direction == "right" and self.x < WIDTH - self.width:
+            self.x += self.speed
+        elif direction == "up" and self.y > 0:
+            self.y -= self.speed
+        elif direction == "down" and self.y < HEIGHT - self.height:
+            self.y += self.speed
+    
+    def check_collision(self, obstacle):
+        return (self.x < obstacle.x + obstacle.width and
+                self.x + self.width > obstacle.x and
+                self.y < obstacle.y + obstacle.height and
+                self.y + self.height > obstacle.y)
+
+class Obstacle:
+    def __init__(self):
+        self.width = random.randint(50, 100)
+        self.height = random.randint(20, 40)
+        self.x = random.randint(0, WIDTH - self.width)
+        self.y = -self.height
+        self.speed = random.randint(3, 7)
+        self.color = RED
+    
+    def draw(self):
+        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
+    
+    def move(self):
+        self.y += self.speed
+        if self.y > HEIGHT:
+            self.y = -self.height
+            self.x = random.randint(0, WIDTH - self.width)
+            return True
+        return False
+
+class Game:
+    def __init__(self):
+        self.player = Car(WIDTH // 2, HEIGHT - 100, BLUE)
+        self.opponent = Car(WIDTH // 4, HEIGHT - 200, GREEN, speed=4)
+        self.obstacles = [Obstacle() for _ in range(5)]
+        self.game_over = False
+        self.font = pygame.font.SysFont(None, 36)
+    
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+        
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            self.player.move("left")
+        if keys[pygame.K_RIGHT]:
+            self.player.move("right")
+        if keys[pygame.K_UP]:
+            self.player.move("up")
+        if keys[pygame.K_DOWN]:
+            self.player.move("down")
+        
+        return True
+    
+    def update(self):
+        # Движение противника
+        if random.random() < 0.02:
+            direction = random.choice(["left", "right", "up", "down"])
+            self.opponent.move(direction)
+        
+        # Движение препятствий
+        for obstacle in self.obstacles:
+            if obstacle.move():
+                self.player.score += 1
+        
+        # Проверка столкновений
+        for obstacle in self.obstacles:
+            if self.player.check_collision(obstacle):
+                self.game_over = True
+            if self.opponent.check_collision(obstacle):
+                self.opponent.y = HEIGHT - 200
+    
+    def draw(self):
+        screen.fill(GRAY)  # Дорога
+        
+        # Разметка
+        for i in range(0, HEIGHT, 40):
+            pygame.draw.rect(screen, WHITE, (WIDTH // 2 - 5, i, 10, 20))
+        
+        # Машины и препятствия
+        for obstacle in self.obstacles:
+            obstacle.draw()
+        
+        self.player.draw()
+        self.opponent.draw()
+        
+        # Очки
+        score_text = self.font.render(f"Очки: {self.player.score}", True, WHITE)
+        screen.blit(score_text, (10, 10))
+        
+        if self.game_over:
+            game_over_text = self.font.render("ИГРА ОКОНЧЕНА! Нажми R для рестарта", True, WHITE)
+            screen.blit(game_over_text, (WIDTH // 2 - 200, HEIGHT // 2))
+    
+    def run(self):
+        running = True
+        while running:
+            running = self.handle_events()
+            
+            keys = pygame.key.get_pressed()
+            if self.game_over and keys[pygame.K_r]:
+                self.__init__()  # Рестарт
+            
+            if not self.game_over:
+                self.update()
+            
+            self.draw()
+            pygame.display.flip()
+            clock.tick(FPS)
+
+# Запуск игры
+if __name__ == "__main__":
+    game = Game()
+    game.run()
+    pygame.quit()
+    sys.exit()
